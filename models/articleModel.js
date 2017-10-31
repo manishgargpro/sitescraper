@@ -16,6 +16,10 @@ var ArticleSchema = new Schema({
   	type: String,
   	required: true
   },
+  createdAt: {
+    type: Date,
+    default: Date.now
+  },
   comment: {
     type: Schema.Types.Mixed,
     ref: "Comment"

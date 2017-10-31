@@ -16,83 +16,93 @@ app.engine("handlebars", exhbs({ defaultLayout: "main" }));
 app.set("view engine", "handlebars");
 
 mongoose.Promise = Promise;
-mongoose.connect('mongodb://localhost/article_db');
+mongoose.connect(process.env.MONGO_URI || 'mongodb://localhost/article_db');
 
 var results = [];
 
-app.get("/scrape", function (req, res) {
-	request("https://www.reddit.com", function (error, response, html) {
-		var $ = cheerio.load(html);
-		$("div.thing").each(function (i, element) {
-			var atitle = $(element).find("a.title").text();
-			var aimgsrc = $(element).find("img").attr("src");
-			var alink = $(element).attr("data-url");
-			var newArticle = {
-				title: atitle,
-				img: aimgsrc,
-				link: alink,
-			};
-			db.Article.find({ title: newArticle.title }).then(function (dbArticle) {
-				if (!dbArticle.length) {
-					db.Article.create(newArticle).then(function (dbArticle) {
-						res.send("Success, reload the page");
-						return;
-					}).catch(function (error) {
-						console.log(error);
-						res.send(false);
-					})
-				} else {
-					res.send("No new articles, reload the page");
-					return;
-				}
-			}).catch(function (error) {
-				console.log(error);
-				res.send(false);
-			});
-		});
-	});
+app.get("/scrape", function(req, res) {
+  request("https://www.reddit.com", function(error, response, html) {
+    var $ = cheerio.load(html);
+    db.Article.find({})
+      .then(function(dbArticles) {
+        var articles = dbArticles.slice(0);
+        console.log(articles);
+        $("div.thing").each(function(i, element) {
+          var atitle = $(element).find("a.title").text();
+          var aimgsrc = $(element).find("img").attr("src");
+          var alink;
+          if ($(element).attr("data-url").split("/")[0] === "r") {
+            alink = "https://www.reddit.com" + $(element).attr("data-url");
+          } else {
+            alink = $(element).attr("data-url");
+          }
+          var newArticle = {
+            title: atitle,
+            img: aimgsrc,
+            link: alink,
+          };
+          var found = false;
+          articles.forEach(function(article) {
+            if (article.title === newArticle.title) {
+              found = true;
+            }
+          });
+          if (found === false) {
+            articles.push(newArticle);
+          }
+        })
+        console.log(articles);
+        return db.Article.create(articles);
+      })
+      .then(function(dbArticles) {
+        console.log(dbArticles)
+        res.json(dbArticles);
+      })
+      .catch(function(error) {
+        console.log(error)
+      })
+  });
 });
 
-app.get("/", function (req, res) {
-	db.Article
-		.find({})
-		.populate("comment")
-		.then(function (dbArticle) {
-			// res.json(dbArticle);
-			res.render("index", {articles: dbArticle.reverse()});
-		}).catch(function (error) {
-			console.log(error);
-			res.send(false);
-		});
+app.get("/", function(req, res) {
+  db.Article
+    .find({}, null, { sort: { createdAt: -1 } })
+    .populate("comment")
+    .then(function(dbArticle) {
+      res.render("index", { articles: dbArticle });
+    }).catch(function(error) {
+      console.log(error);
+      res.send(false);
+    });
 });
 
-app.post("/comment/:id", function (req, res) {
-	db.Comment
-		.create(req.body)
-		.then(function(dbComment) {
-			return db.Article
-				.findOneAndUpdate(
-					{_id: req.params.id},
-					{$push: {comment: dbComment._id}},
-					{new: true}
-				)
-		}).then(function (dbArticle) {
-			res.redirect("/");
-		}).catch(function (error) {
-			console.log(error);
-			res.send(false);
-		});
+app.post("/comment/:articleId", function(req, res) {
+  db.Comment
+    .create(req.body)
+    .then(function(dbComment) {
+      return db.Article
+        .findOneAndUpdate({ _id: req.params.articleId }, { $push: { comment: dbComment._id } }, { new: true })
+    }).then(function(dbArticle) {
+      res.redirect("/");
+    }).catch(function(error) {
+      console.log(error);
+      res.send(false);
+    });
 });
 
-app.delete("/delete/:id", function (req, res) {
-	db.Comment
-		.remove({_id: req.params.id})
-		.then(function(dbComment) {
-			res.redirect("/");
-		}).catch(function (error) {
-			console.log(error);
-			res.send(false);
-		});
+app.delete("/delete/:id", function(req, res) {
+  db.Comment
+    .remove({ _id: req.params.id })
+    .then(function(dbComment) {
+      return db.Article
+        .update({}, { $pull: { comments: { _id: req.params.id } } }, { new: true })
+    })
+    .then(function(dbArticle) {
+      res.redirect("/");
+    }).catch(function(error) {
+      console.log(error);
+      res.send(false);
+    });
 });
 
 app.listen(PORT, function() {
