@@ -1,0 +1,21 @@
+
+<button type="submit" onclick="scrape()">Scrape</button>
+
+{{#each articles}}
+<div class="container-fluid" id="{{this.id}}">
+	<img src="{{this.img}}">
+	<a href="{{this.link}}"><h2>{{this.title}}</h2></a>
+	<ul>
+		{{#each this.comment}}
+		<li id="{{this.id}}">
+			{{this.text}}
+			<button type="submit" class="delete">Delete</button>
+		</li>
+		{{/each}}
+	</ul>
+	<form method="POST" action="/comment/{{this.id}}" class="button-size">
+	  <textarea type="text" name="text" placeholder"Type your comment"></textarea>
+	  <button type="submit">Submit</button>
+	</form>
+</div>
+{{/each}}
