@@ -16,7 +16,7 @@ app.engine("handlebars", exhbs({ defaultLayout: "main" }));
 app.set("view engine", "handlebars");
 
 mongoose.Promise = Promise;
-mongoose.connect(process.env.MONGO_URI || 'mongodb://localhost/article_db');
+mongoose.connect(process.env.MONGODB_URI || 'mongodb://localhost/article_db');
 
 var results = [];
 
