@@ -81,7 +81,11 @@ app.post("/comment/:articleId", function(req, res) {
     .create(req.body)
     .then(function(dbComment) {
       return db.Article
-        .findOneAndUpdate({ _id: req.params.articleId }, { $push: { comment: dbComment._id } }, { new: true })
+        .findOneAndUpdate(
+          { _id: req.params.articleId },
+          { $push: { comment: dbComment._id } },
+          { new: true }
+        )
     }).then(function(dbArticle) {
       res.redirect("/");
     }).catch(function(error) {
@@ -95,7 +99,11 @@ app.delete("/delete/:id", function(req, res) {
     .remove({ _id: req.params.id })
     .then(function(dbComment) {
       return db.Article
-        .update({}, { $pull: { comments: { _id: req.params.id } } }, { new: true })
+        .findOneAndUpdate(
+          {_id: req.body.id},
+          { $pull: { comment: { _id: req.params.id } } },
+          { new: true }
+        )
     })
     .then(function(dbArticle) {
       res.redirect("/");
