@@ -106,7 +106,7 @@ app.delete("/delete/:id", function(req, res) {
         )
     })
     .then(function(dbArticle) {
-      res.redirect("/");
+      res.json("/");
     }).catch(function(error) {
       console.log(error);
       res.send(false);
